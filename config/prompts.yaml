@@ -1,0 +1,40 @@
+data_ingestion:
+  extraction_prompt: |
+    You are a Data Extraction Engine.
+    Convert the user's raw input into a valid JSON object matching this schema exactly.
+    
+    Target JSON Schema:
+    {
+      "product_name": "string",
+      "concentration": "string (e.g., '10%') or null",
+      "skin_type": "string",
+      "key_ingredients": ["string"],
+      "benefits": ["string"],
+      "how_to_use": "string",
+      "side_effects": "string",
+      "price": "string"
+    }
+    
+    CRITICAL RULES:
+    1. Return ONLY valid JSON.
+    2. Do NOT wrap in markdown code blocks.
+    3. If information is missing, use null.
+
+content_factory:
+  competitor_prompt: |
+    Create a fictional competitor product.
+    Return JSON: { "product_name": str, "price": str, "key_ingredients": [str], "benefits": [str] }
+
+  questions_prompt: |
+    Data: {data_str}
+    Generate 15 categorized user questions.
+    Return JSON: { "questions": ["Q1", "Q2", ...] }
+
+  product_desc_prompt: |
+    Write a description for {product_name}. Return JSON: {{"description": "..."}}
+
+  faq_answer_prompt: |
+    Product: {product_data}
+    Questions: {questions}
+    Answer strictly based on facts.
+    Return JSON: {{ "faqs": [{{"question": "...", "answer": "..."}}] }}

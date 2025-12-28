@@ -1,0 +1,14 @@
+# Security (CRITICAL)
+.env
+
+# Python & System Junk
+__pycache__/
+*.pyc
+venv/
+.pytest_cache/
+.DS_Store
+
+# Generated Artifacts (Keep the repo clean)
+product_page.json
+faq.json
+comparison_page.json
