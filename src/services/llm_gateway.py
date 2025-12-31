@@ -1,77 +1,75 @@
-import time
+import os
+import google.generativeai as genai
 from typing import List, Dict, Optional
+from dotenv import load_dotenv
 
-from openai import OpenAI, OpenAIError
-
-from config.settings import settings
-
+load_dotenv()
 
 class LLMGateway:
     """
-    LLM Gateway.
-
-    Responsibilities:
-    - Abstract interaction with the LLM provider
-    - Centralize model and API configuration
-    - Provide a stable interface for agent usage
-    - Handle transient failures with minimal retry logic
+    Gemini Gateway (Auto-Discovery Mode).
+    Automatically finds a valid model to avoid 404 errors.
     """
 
     def __init__(self):
-        """
-        Initialize the LLM client using centralized settings.
-        """
-        if not settings.OPENAI_API_KEY:
-            raise ValueError("LLMGateway: OPENAI_API_KEY is not configured.")
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            raise ValueError("Missing Gemini API Key in .env")
 
-        self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
-        self.model = settings.LLM_MODEL
+        genai.configure(api_key=api_key)
+        
+        # AUTO-DISCOVERY LOGIC
+        self.model_name = self._find_working_model()
+        print(f"✅ Gemini Gateway initialized using: {self.model_name}")
+
+    def _find_working_model(self) -> str:
+        """Query the API to find the first available text generation model."""
+        try:
+            # List all models the key has access to
+            for m in genai.list_models():
+                # We need a model that supports 'generateContent' and is a 'gemini' model
+                if 'generateContent' in m.supported_generation_methods:
+                    if 'gemini' in m.name.lower() and 'vision' not in m.name.lower():
+                        return m.name
+            
+            # Fallback if list_models fails or returns nothing useful
+            return "models/gemini-pro"
+        except Exception as e:
+            print(f"⚠️ Model Discovery Failed: {e}")
+            return "models/gemini-pro"
 
     def chat_completion(
         self,
         messages: List[Dict[str, str]],
-        temperature: float,
+        temperature: float = 0.0,
         response_format: str = "text",
     ) -> Optional[str]:
-        """
-        Executes a chat completion request.
+        
+        try:
+            # Adapt Prompts
+            system_prompt = None
+            user_prompt = ""
+            for msg in messages:
+                if msg["role"] == "system":
+                    system_prompt = msg["content"]
+                elif msg["role"] == "user":
+                    user_prompt += msg["content"] + "\n"
 
-        Args:
-            messages: OpenAI-style message list
-            temperature: Creativity control
-            response_format: 'text' or 'json_object'
+            # Configure
+            generation_config = {"temperature": temperature}
+            if response_format == "json_object":
+                generation_config["response_mime_type"] = "application/json"
 
-        Returns:
-            Raw string response from the LLM, or None if failure occurs.
-        """
-        api_response_format = (
-            {"type": "json_object"}
-            if response_format == "json_object"
-            else {"type": "text"}
-        )
+            # Init Model with the auto-detected name
+            model = genai.GenerativeModel(
+                model_name=self.model_name,
+                system_instruction=system_prompt,
+                generation_config=generation_config
+            )
 
-        max_retries = 1
-        last_error: Optional[Exception] = None
+            response = model.generate_content(user_prompt)
+            return response.text if response.text else "{}"
 
-        for attempt in range(max_retries + 1):
-            try:
-                response = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=messages,
-                    temperature=temperature,
-                    response_format=api_response_format,
-                )
-
-                return response.choices[0].message.content
-
-            except OpenAIError as e:
-                last_error = e
-                if attempt < max_retries:
-                    time.sleep(1)
-                else:
-                    return None
-
-            except Exception as e:
-                return None
-
-        return None
+        except Exception as e:
+            print(f"❌ Gemini Error ({self.model_name}): {str(e)}")
+            return "{}"

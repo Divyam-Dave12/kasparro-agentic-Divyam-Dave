@@ -1,47 +1,40 @@
-from typing import List
+from typing import Dict
 from src.core.workflow_state import WorkflowState
 from src.agents.base_agent import BaseAgent
+from src.agents.supervisor import SupervisorAgent
 
 class Orchestrator:
-    """
-    Minimal Control Flow Manager.
-    
-    Responsibilities:
-    1. Holds the registry of agents to execute.
-    2. Passes state sequentially from one agent to the next.
-    3. Enforces early stopping if the state encounters critical errors.
-    """
-
-    def __init__(self, agents: List[BaseAgent]):
-        """
-        Initialize the orchestrator with a defined pipeline of agents.
-        
-        Args:
-            agents (List[BaseAgent]): Ordered list of agents to execute.
-        """
+    def __init__(self, supervisor: SupervisorAgent, agents: Dict[str, BaseAgent]):
+        self.supervisor = supervisor
         self.agents = agents
 
     def run(self, initial_state: WorkflowState) -> WorkflowState:
-        """
-        Executes the workflow pipeline.
+        state = initial_state
+        print("🚀 Orchestrator Started (Dynamic Mode)")
         
-        Args:
-            initial_state (WorkflowState): The starting state with raw user input.
+        # Guard against infinite loops
+        for _ in range(15):
+            if state.is_complete:
+                print("✅ System Finished.")
+                break
+                
+            # 1. Supervisor Decides
+            state = self.supervisor.process(state)
+            next_agent_name = state.next_agent
             
-        Returns:
-            WorkflowState: The final state after all agents have run or an error occurred.
-        """
-        current_state = initial_state
-
-        for agent in self.agents:
-            # Circuit breaker: Stop execution if previous steps failed
-            if current_state.errors:
-                print(f"Orchestrator: Stopping execution due to errors before {agent.agent_name}.")
+            if next_agent_name == "FINISH":
+                state.is_complete = True
                 break
             
-            # Execute agent logic
-            # Note: In a real production system, this would be wrapped in try/except 
-            # to catch unexpected crashes and log them to state.errors.
-            current_state = agent.process(current_state)
-
-        return current_state
+            # 2. Worker Executes
+            print(f"👉 Supervisor chose: {next_agent_name}")
+            worker = self.agents.get(next_agent_name)
+            
+            if worker:
+                state = worker.process(state)
+                state.last_agent = next_agent_name
+            else:
+                state.add_error(f"Unknown agent: {next_agent_name}")
+                break
+                
+        return state
