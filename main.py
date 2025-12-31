@@ -4,7 +4,7 @@ from src.agents.supervisor import SupervisorAgent
 from src.agents.data_ingestion import DataIngestionAgent
 from src.agents.researcher import ResearchAgent
 from src.agents.drafter import DraftingAgent
-
+from src.agents.reviewer import ReviewerAgent
 
 RAW_INPUT = "Sell a Vitamin C Serum for $50."
 
@@ -13,7 +13,8 @@ def main():
     registry = {
         "ingestor": DataIngestionAgent(),
         "researcher": ResearchAgent(),
-        "drafter": DraftingAgent()
+        "drafter": DraftingAgent(),
+        "reviewer": ReviewerAgent()
     }
     
     # 2. Initialize Boss

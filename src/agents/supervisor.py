@@ -11,37 +11,40 @@ class SupervisorAgent(BaseAgent):
         self.llm_gateway = llm_gateway or LLMGateway()
 
     def process(self, state: WorkflowState) -> WorkflowState:
-        # 0. CIRCUIT BREAKER: If errors exist, STOP immediately.
-        if state.errors:
-            print(f"[{self.agent_name}] 🛑 Errors detected. Stopping workflow.")
-            state.next_agent = "FINISH"
-            state.is_complete = True
-            return state
+        # 0. CIRCUIT BREAKER
+        # If we looped too many times, just stop.
+        if state.errors and "ReviewFeedback" not in state.errors[-1]: 
+             # Only stop for critical errors, not feedback loops
+             state.next_agent = "FINISH"
+             state.is_complete = True
+             return state
 
-        # 1. Check if we are done (All 3 pages exist)
-        if state.faq_page and state.product_page and state.comparison_page:
-            state.next_agent = "FINISH"
-            state.is_complete = True
-            return state
+        # 1. Completion Check
+        # If all pages exist AND we haven't just come from the Drafter, run Reviewer
+        if state.product_page and state.faq_page and state.comparison_page:
+            if state.last_agent == "drafter":
+                state.next_agent = "reviewer"
+                return state
+            
+            # If we came from Reviewer and pages still exist, it means we passed!
+            if state.last_agent == "reviewer":
+                state.next_agent = "FINISH"
+                state.is_complete = True
+                return state
 
         # 2. Dynamic Routing Logic
-        
-        # Priority 1: No data? -> Ingest
         if not state.product_data:
             state.next_agent = "ingestor"
             return state
 
-        # Priority 2: Data exists, but missing research? -> Research
         if not state.competitor_data or not state.generated_questions:
             state.next_agent = "researcher"
             return state
 
-        # Priority 3: Research done, but missing pages? -> Draft
-        if not state.faq_page or not state.product_page or not state.comparison_page:
+        if not state.product_page or not state.faq_page or not state.comparison_page:
             state.next_agent = "drafter"
             return state
 
-        # Fallback
         state.next_agent = "FINISH"
         state.is_complete = True
         return state
