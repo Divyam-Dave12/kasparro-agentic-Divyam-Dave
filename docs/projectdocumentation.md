@@ -58,3 +58,50 @@ cd kasparro-agentic-Divyam-Dave
 
 # Install dependencies
 pip install -r requirements.txt
+
+2. Configuration
+Create a .env file in the root directory. You can use OpenAI OR Google Gemini (Free Tier):
+
+Ini, TOML
+
+# Option A: Google Gemini (Recommended for Free Testing)
+GEMINI_API_KEY=AIzaSy...
+
+# Option B: OpenAI
+ OPENAI_API_KEY=sk-...
+3. Running the System
+To run the full autonomous pipeline:
+
+Bash
+
+python main.py
+You will see the Supervisor dynamically routing tasks:
+
+🚀 Orchestrator Started (Dynamic Mode)
+👉 Supervisor chose: ingestor
+👉 Supervisor chose: researcher
+👉 Supervisor chose: drafter
+👉 Supervisor chose: reviewer
+✅ System Finished.
+
+4. Running Tests
+The project includes unit tests for individual agents and edge-case handling.
+
+Bash
+
+pytest tests/
+📂 Project Structure
+src/
+├── agents/
+│   ├── supervisor.py       # The Routing Logic (Brain)
+│   ├── data_ingestion.py   # Raw Text -> Structured Data
+│   ├── researcher.py       # Competitor & Question Generation
+│   ├── drafter.py          # Final Page Assembly
+│   └── reviewer.py         # Quality Assurance (Feedback Loop)
+├── core/
+│   ├── orchestrator.py     # Execution Loop
+│   └── workflow_state.py   # Shared State Object
+├── services/
+│   └── llm_gateway.py      # Multi-Provider Wrapper (Gemini/OpenAI)
+└── schemas/
+    └── product_data.py     # Pydantic Validation Models
