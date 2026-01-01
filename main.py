@@ -5,6 +5,7 @@ from src.agents.data_ingestion import DataIngestionAgent
 from src.agents.researcher import ResearchAgent
 from src.agents.drafter import DraftingAgent
 from src.agents.reviewer import ReviewerAgent
+from src.Utils.file_manager import ArtifactSaver
 
 RAW_INPUT = "Sell a Vitamin C Serum for $50."
 
@@ -31,6 +32,15 @@ def main():
         print("❌ Errors:", final_state.errors)
     else:
         print("✅ Success! Pages generated.")
+    if final_state.is_complete:
+        print("\n------------------------------------------------")
+        print("✅ Workflow Complete. Saving Artifacts...")
+        ArtifactSaver.save_artifacts(final_state, output_dir="output")
+    else:
+        print("\n❌ Workflow finished incompletely. Checking for partial data...")
+        # Optional: Save partial data for debugging
+        if final_state.product_page or final_state.faq_page:
+             ArtifactSaver.save_artifacts(final_state, output_dir="output_partial")
 
 if __name__ == "__main__":
     main()
